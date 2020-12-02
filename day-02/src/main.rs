@@ -1,4 +1,4 @@
-use std::{io::BufRead, str::FromStr};
+use std::io::BufRead;
 
 fn main() {
     let stdin = std::io::stdin();
@@ -9,6 +9,9 @@ fn main() {
         .collect();
 
     let num_valid = entries.iter().filter(|entry| entry.is_valid()).count();
+    println!("{}", num_valid);
+
+    let num_valid = entries.iter().filter(|entry| entry.is_valid_2()).count();
     println!("{}", num_valid);
 }
 
@@ -24,6 +27,13 @@ impl PasswordEntry {
     fn is_valid(&self) -> bool {
         let count = self.password.chars().filter(|c| *c == self.ch).count();
         self.min <= count && count <= self.max
+    }
+
+    fn is_valid_2(&self) -> bool {
+        let chars: Vec<char> = self.password.chars().collect();
+        let c1 = chars.get(self.min - 1);
+        let c2 = chars.get(self.max - 1);
+        (c1 == Some(&self.ch)) ^ (c2 == Some(&self.ch))
     }
 }
 
