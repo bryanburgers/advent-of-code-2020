@@ -8,6 +8,14 @@ fn main() -> Result<()> {
     let r = hill.trees_on_slope(3, 1)?;
     println!("{}", r);
 
+    let slopes = &[(1, 1), (3, 1), (5, 1), (7, 1), (1, 2)];
+    let mut m = 1;
+    for (x, y) in slopes {
+        let r = hill.trees_on_slope(*x, *y)?;
+        m *= r;
+    }
+    println!("{}", m);
+
     Ok(())
 }
 
