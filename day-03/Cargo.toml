@@ -1,0 +1,8 @@
+[package]
+name = "day-03"
+version = "0.1.0"
+authors = ["Bryan Burgers <bryan@burgers.io>"]
+edition = "2018"
+
+[dependencies]
+thiserror = "1"
