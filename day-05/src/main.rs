@@ -3,11 +3,24 @@ use std::io::Read;
 fn main() {
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input).unwrap();
-    let mut seats = input.trim().split('\n').map(|line| line.parse()).collect::<Result<Vec<Seat>, _>>().unwrap();
+    let mut seats = input
+        .trim()
+        .split('\n')
+        .map(|line| line.parse())
+        .collect::<Result<Vec<Seat>, _>>()
+        .unwrap();
 
     seats.sort();
 
-    println!("{}", seats.pop().unwrap().id());
+    println!("{}", seats.last().unwrap().id());
+
+    let mut next_seat_id_expected = seats.first().unwrap().id();
+    for seat in seats {
+        if seat.id() != next_seat_id_expected {
+            println!("{}", next_seat_id_expected);
+        }
+        next_seat_id_expected = seat.id() + 1;
+    }
 }
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -34,10 +47,20 @@ impl std::str::FromStr for Seat {
         let mut val = 0;
         for ch in s.chars() {
             match ch {
-                'F' => { val <<= 1; }
-                'B' => { val <<= 1; val += 1; }
-                'L' => { val <<= 1; }
-                'R' => { val <<= 1; val += 1; }
+                'F' => {
+                    val <<= 1;
+                }
+                'B' => {
+                    val <<= 1;
+                    val += 1;
+                }
+                'L' => {
+                    val <<= 1;
+                }
+                'R' => {
+                    val <<= 1;
+                    val += 1;
+                }
                 _ => {}
             }
         }
