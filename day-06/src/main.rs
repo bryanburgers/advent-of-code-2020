@@ -13,6 +13,9 @@ fn main() {
 
     let r: usize = groups.iter().map(|group| group.total_yeses()).sum();
     println!("{}", r);
+
+    let r: usize = groups.iter().map(|group| group.everyone_yeses()).sum();
+    println!("{}", r);
 }
 
 #[derive(Clone, Debug)]
@@ -26,6 +29,14 @@ impl Group {
             hashset.union(&form.answers).cloned().collect()
         });
         all_yeses.len()
+    }
+
+    fn everyone_yeses(&self) -> usize {
+        let initial: HashSet<char> = ('a'..='z').collect();
+        let everyone_yeses = self.forms.iter().fold(initial, |hashset, form| {
+            hashset.intersection(&form.answers).cloned().collect()
+        });
+        everyone_yeses.len()
     }
 }
 
