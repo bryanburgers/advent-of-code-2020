@@ -11,8 +11,8 @@ fn main() {
         .map(Input::parse)
         .collect::<Vec<_>>();
 
-    let mut all_seen: HashSet<String> = HashSet::new();
-    let mut contains: HashMap<String, Vec<String>> = HashMap::new();
+    let mut all_seen: HashSet<&str> = HashSet::new();
+    let mut contains: HashMap<&str, Vec<&str>> = HashMap::new();
 
     for input in &inputs {
         all_seen.insert(input.outer.clone());
@@ -26,26 +26,26 @@ fn main() {
 
     let mut total_seen = 0;
     for item in &all_seen {
-        if check_contains(item, &String::from("shiny gold"), &contains) {
+        if check_contains(item, "shiny gold", &contains) {
             total_seen += 1;
         }
     }
 
     println!("{}", total_seen);
 
-    let mut contains: HashMap<String, Vec<NumberedBag>> = HashMap::new();
+    let mut contains: HashMap<&str, Vec<NumberedBag<'_>>> = HashMap::new();
 
     for input in &inputs {
         contains.insert(input.outer.clone(), input.inner.clone());
     }
 
-    let r = inside_bag(&String::from("shiny gold"), &contains);
+    let r = inside_bag("shiny gold", &contains);
     println!("{}", r);
 }
 
-fn check_contains(color: &String, target: &String, map: &HashMap<String, Vec<String>>) -> bool {
+fn check_contains(color: &str, target: &str, map: &HashMap<&str, Vec<&str>>) -> bool {
     if let Some(colors) = map.get(color) {
-        if colors.contains(target) {
+        if colors.contains(&target) {
             true
         } else {
             colors
@@ -57,7 +57,7 @@ fn check_contains(color: &String, target: &String, map: &HashMap<String, Vec<Str
     }
 }
 
-fn inside_bag(color: &String, map: &HashMap<String, Vec<NumberedBag>>) -> usize {
+fn inside_bag(color: &str, map: &HashMap<&str, Vec<NumberedBag<'_>>>) -> usize {
     if let Some(bags) = map.get(color) {
         let mut total = 0;
         for bag in bags {
@@ -71,24 +71,38 @@ fn inside_bag(color: &String, map: &HashMap<String, Vec<NumberedBag>>) -> usize 
 }
 
 #[derive(Debug, Clone)]
-struct Input {
-    outer: String,
-    inner: Vec<NumberedBag>,
+struct Input<'a> {
+    outer: &'a str,
+    inner: Vec<NumberedBag<'a>>,
 }
 
-impl Input {
-    fn parse(input: &str) -> Self {
-        let mut parts = input.trim().split_whitespace();
+fn one_word<'a>(input: &'a str) -> (&'a str, Option<&'a str>) {
+    if let Some(whitespace) = input.find(' ') {
+        (&input[..whitespace], Some(&input[(whitespace + 1)..]))
+    } else {
+        (input, None)
+    }
+}
 
-        let c1 = parts.next().unwrap();
-        let c2 = parts.next().unwrap();
-        let outer = format!("{} {}", c1, c2);
+fn two_words<'a>(input: &'a str) -> (&'a str, Option<&'a str>) {
+    let (first_word, rest) = one_word(input);
+    if let Some(rest) = rest {
+        let (second_word, rest) = one_word(rest);
+        (&input[..(first_word.len() + 1 + second_word.len())], rest)
+    } else {
+        (first_word, rest)
+    }
+}
 
-        assert_eq!(parts.next(), Some("bags"));
-        assert_eq!(parts.next(), Some("contain"));
+impl<'a> Input<'a> {
+    fn parse(input: &'a str) -> Self {
+        let (outer, rest) = two_words(input);
+        let (_bags, rest) = one_word(rest.unwrap());
+        let (_contain, rest) = one_word(rest.unwrap());
 
-        let mut next = parts.next();
-        if next == Some("no") {
+        let (next_word, _) = one_word(rest.unwrap());
+
+        if next_word == "no" {
             return Input {
                 outer,
                 inner: vec![],
@@ -96,28 +110,24 @@ impl Input {
         }
 
         let mut inner = Vec::new();
-        loop {
-            if let Some(part) = next {
-                let number = part.parse::<usize>().unwrap();
-                let c1 = parts.next().unwrap();
-                let c2 = parts.next().unwrap();
-                let color = format!("{} {}", c1, c2);
-                inner.push(NumberedBag { number, color });
-                parts.next().unwrap();
-                next = parts.next();
-            } else {
-                break;
-            }
+        let mut outer_rest = rest;
+        while let Some(rest) = outer_rest {
+            let (number, rest) = one_word(rest);
+            let number = number.parse::<usize>().unwrap();
+            let (color, rest) = two_words(rest.unwrap());
+            let (_bag, rest) = one_word(rest.unwrap());
+            outer_rest = rest;
+            inner.push(NumberedBag { number, color });
         }
 
         Input { outer, inner }
     }
 }
 
-#[derive(Debug, Clone)]
-struct NumberedBag {
+#[derive(Copy, Clone, Debug)]
+struct NumberedBag<'a> {
     number: usize,
-    color: String,
+    color: &'a str,
 }
 
 #[cfg(test)]
