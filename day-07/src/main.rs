@@ -32,6 +32,15 @@ fn main() {
     }
 
     println!("{}", total_seen);
+
+    let mut contains: HashMap<String, Vec<NumberedBag>> = HashMap::new();
+
+    for input in &inputs {
+        contains.insert(input.outer.clone(), input.inner.clone());
+    }
+
+    let r = inside_bag(&String::from("shiny gold"), &contains);
+    println!("{}", r);
 }
 
 fn check_contains(color: &String, target: &String, map: &HashMap<String, Vec<String>>) -> bool {
@@ -48,7 +57,20 @@ fn check_contains(color: &String, target: &String, map: &HashMap<String, Vec<Str
     }
 }
 
-#[derive(Debug)]
+fn inside_bag(color: &String, map: &HashMap<String, Vec<NumberedBag>>) -> usize {
+    if let Some(bags) = map.get(color) {
+        let mut total = 0;
+        for bag in bags {
+            let r = 1 + inside_bag(&bag.color, &map);
+            total += bag.number * r;
+        }
+        total
+    } else {
+        0
+    }
+}
+
+#[derive(Debug, Clone)]
 struct Input {
     outer: String,
     inner: Vec<NumberedBag>,
@@ -92,7 +114,7 @@ impl Input {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct NumberedBag {
     number: usize,
     color: String,
