@@ -20,6 +20,29 @@ fn main() {
         interpreter.step().unwrap();
     }
     println!("{}", interpreter.accumulator);
+
+    for i in 0..instructions.len() {
+        let mut instructions = instructions.clone();
+        if !instructions.get_mut(i).unwrap().fix() {
+            continue;
+        }
+
+        let mut interpreter = Interpreter::new(&instructions);
+        let mut instruction_seen = HashSet::new();
+        let success = loop {
+            if !instruction_seen.insert(interpreter.instruction_pointer) {
+                break false;
+            }
+
+            if interpreter.step().unwrap() == StepResult::Done {
+                break true;
+            }
+        };
+
+        if success {
+            println!("{}", interpreter.accumulator);
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -27,6 +50,22 @@ enum Instruction {
     Nop(i64),
     Acc(i64),
     Jmp(i64),
+}
+
+impl Instruction {
+    fn fix(&mut self) -> bool {
+        match self {
+            Instruction::Acc(_) => false,
+            Instruction::Nop(n) => {
+                *self = Instruction::Jmp(*n);
+                true
+            }
+            Instruction::Jmp(n) => {
+                *self = Instruction::Nop(*n);
+                true
+            }
+        }
+    }
 }
 
 impl std::str::FromStr for Instruction {
@@ -73,10 +112,16 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn step(&mut self) -> Result<(), InterpreterError> {
+    fn step(&mut self) -> Result<StepResult, InterpreterError> {
         let instruction = self.fetch_instruction()?;
         self.interpret_instruction(instruction)?;
-        Ok(())
+        if self.instruction_pointer >= 0
+            && self.instruction_pointer as usize == self.instructions.len()
+        {
+            Ok(StepResult::Done)
+        } else {
+            Ok(StepResult::Running)
+        }
     }
 
     fn fetch_instruction(&self) -> Result<Instruction, InterpreterError> {
@@ -106,4 +151,10 @@ impl<'a> Interpreter<'a> {
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum StepResult {
+    Done,
+    Running,
 }
