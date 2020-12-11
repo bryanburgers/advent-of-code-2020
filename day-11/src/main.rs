@@ -4,9 +4,23 @@ fn main() {
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input).unwrap();
 
-    let mut floorplan = Floorplan::parse(&input);
+    let original_floorplan = Floorplan::parse(&input);
+
+    let mut floorplan = original_floorplan.clone();
     loop {
         let new_floorplan = floorplan.step();
+        if new_floorplan == floorplan {
+            // Done
+            break;
+        } else {
+            floorplan = new_floorplan;
+        }
+    }
+    println!("{}", floorplan.count_occupied());
+
+    let mut floorplan = original_floorplan;
+    loop {
+        let new_floorplan = floorplan.step_v2();
         if new_floorplan == floorplan {
             // Done
             break;
@@ -133,6 +147,99 @@ impl Floorplan {
         r
     }
 
+    fn step_v2(&self) -> Self {
+        let mut new_seats = self.seats.clone();
+        for x in 0..self.width {
+            for y in 0..self.height {
+                let index = y * self.width + x;
+                new_seats[index] = self.step_seat_v2((x, y));
+            }
+        }
+
+        Floorplan {
+            width: self.width,
+            height: self.height,
+            seats: new_seats,
+        }
+    }
+
+    fn step_seat_v2(&self, point: (usize, usize)) -> Seat {
+        let seat = self.seat_at_point(point);
+        if seat == Seat::Floor {
+            return Seat::Floor;
+        }
+
+        let mut occupied_seen = 0;
+        if self.occupied_seen(point, (-1, -1)) {
+            occupied_seen += 1;
+        }
+        if self.occupied_seen(point, (0, -1)) {
+            occupied_seen += 1;
+        }
+        if self.occupied_seen(point, (1, -1)) {
+            occupied_seen += 1;
+        }
+
+        if self.occupied_seen(point, (-1, 0)) {
+            occupied_seen += 1;
+        }
+        if self.occupied_seen(point, (1, 0)) {
+            occupied_seen += 1;
+        }
+
+        if self.occupied_seen(point, (-1, 1)) {
+            occupied_seen += 1;
+        }
+        if self.occupied_seen(point, (0, 1)) {
+            occupied_seen += 1;
+        }
+        if self.occupied_seen(point, (1, 1)) {
+            occupied_seen += 1;
+        }
+
+        match seat {
+            Seat::Floor => Seat::Floor,
+            Seat::Occupied => {
+                if occupied_seen >= 5 {
+                    Seat::Empty
+                } else {
+                    Seat::Occupied
+                }
+            }
+            Seat::Empty => {
+                if occupied_seen == 0 {
+                    Seat::Occupied
+                } else {
+                    Seat::Empty
+                }
+            }
+        }
+    }
+
+    fn occupied_seen(&self, point: (usize, usize), direction: (i8, i8)) -> bool {
+        let mut x = point.0 as i8;
+        let mut y = point.1 as i8;
+        let max_x = self.width as i8 - 1;
+        let max_y = self.height as i8 - 1;
+
+        x += direction.0;
+        y += direction.1;
+
+        while x >= 0 && x <= max_x && y >= 0 && y <= max_y {
+            let index = (y as usize) * self.width + (x as usize);
+            if self.seats[index] == Seat::Occupied {
+                return true;
+            }
+            if self.seats[index] == Seat::Empty {
+                return false;
+            }
+
+            x += direction.0;
+            y += direction.1;
+        }
+        false
+    }
+
     fn parse(input: &str) -> Self {
         let lines = input.trim().split('\n');
 
@@ -171,7 +278,7 @@ impl Floorplan {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 enum Seat {
     Empty,
     Occupied,
