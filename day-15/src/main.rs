@@ -29,7 +29,7 @@ fn main() {
             Some(prev) => current_turn - prev,
         };
 
-        if current_turn == 2020 {
+        if current_turn == 30000000 {
             break value;
         }
 
