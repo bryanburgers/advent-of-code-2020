@@ -1,5 +1,5 @@
-use std::io::Read;
 use std::collections::HashSet;
+use std::io::Read;
 
 fn main() {
     let mut input = String::new();
@@ -26,8 +26,8 @@ fn parse_2d_into_life_3d(s: &str) -> Life3d {
         let mut x = 0;
         for ch in line.trim().chars() {
             match ch {
-                '#' => { life.mark_alive(x, y, 0) },
-                '.' => {},
+                '#' => life.mark_alive(x, y, 0),
+                '.' => {}
                 ch => panic!("Unexpected character {}", ch),
             }
             x += 1;
@@ -47,8 +47,8 @@ fn parse_2d_into_life_4d(s: &str) -> Life4d {
         let mut x = 0;
         for ch in line.trim().chars() {
             match ch {
-                '#' => { life.mark_alive(x, y, 0, 0) },
-                '.' => {},
+                '#' => life.mark_alive(x, y, 0, 0),
+                '.' => {}
                 ch => panic!("Unexpected character {}", ch),
             }
             x += 1;
@@ -129,9 +129,9 @@ impl Life3d {
     fn step(&self) -> Self {
         let mut new = Life3d::default();
 
-        for x in (self.x_range.0-1)..=(self.x_range.1+1) {
-            for y in (self.y_range.0-1)..=(self.y_range.1+1) {
-                for z in (self.z_range.0-1)..=(self.z_range.1+1) {
+        for x in (self.x_range.0 - 1)..=(self.x_range.1 + 1) {
+            for y in (self.y_range.0 - 1)..=(self.y_range.1 + 1) {
+                for z in (self.z_range.0 - 1)..=(self.z_range.1 + 1) {
                     if self.alive_next_generation(x, y, z) {
                         new.mark_alive(x, y, z);
                     }
@@ -213,7 +213,11 @@ impl Iterator for CubeIter {
         if self.x == 0 && self.y == 0 && self.z == 0 {
             self.step();
         }
-        let r = (self.x + self.offset_x, self.y + self.offset_y, self.z + self.offset_z);
+        let r = (
+            self.x + self.offset_x,
+            self.y + self.offset_y,
+            self.z + self.offset_z,
+        );
         self.step();
         Some(r)
     }
@@ -296,10 +300,10 @@ impl Life4d {
     fn step(&self) -> Self {
         let mut new = Life4d::default();
 
-        for x in (self.x_range.0-1)..=(self.x_range.1+1) {
-            for y in (self.y_range.0-1)..=(self.y_range.1+1) {
-                for z in (self.z_range.0-1)..=(self.z_range.1+1) {
-                    for w in (self.w_range.0-1)..=(self.w_range.1+1) {
+        for x in (self.x_range.0 - 1)..=(self.x_range.1 + 1) {
+            for y in (self.y_range.0 - 1)..=(self.y_range.1 + 1) {
+                for z in (self.z_range.0 - 1)..=(self.z_range.1 + 1) {
+                    for w in (self.w_range.0 - 1)..=(self.w_range.1 + 1) {
                         if self.alive_next_generation(x, y, z, w) {
                             new.mark_alive(x, y, z, w);
                         }
@@ -370,7 +374,12 @@ impl Iterator for HyperCubeIter {
         if self.x == 0 && self.y == 0 && self.z == 0 && self.w == 0 {
             self.step();
         }
-        let r = (self.x + self.offset_x, self.y + self.offset_y, self.z + self.offset_z, self.w + self.offset_w);
+        let r = (
+            self.x + self.offset_x,
+            self.y + self.offset_y,
+            self.z + self.offset_z,
+            self.w + self.offset_w,
+        );
         self.step();
         Some(r)
     }

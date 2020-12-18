@@ -47,7 +47,10 @@ mod tests {
 
     #[test]
     fn expr() {
-        let expr = Expr::add(Expr::add(Expr::add(Expr::number(1), Expr::number(2)), Expr::number(3)), Expr::number(4));
+        let expr = Expr::add(
+            Expr::add(Expr::add(Expr::number(1), Expr::number(2)), Expr::number(3)),
+            Expr::number(4),
+        );
         assert_eq!(expr.evaluate(), 10);
     }
 }
