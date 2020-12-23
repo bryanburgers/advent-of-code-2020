@@ -8,9 +8,10 @@ fn main() {
     let input = input
         .chars()
         .map(|c| c.to_string().parse())
-        .collect::<Result<Vec<u8>, _>>()
+        .collect::<Result<Vec<usize>, _>>()
         .unwrap();
-    let mut game = Game::from(input).unwrap();
+    let mut game = Game::from(&input, 9).unwrap();
+    println!("{}", game.output_n(20));
     for i in 0..100 {
         // println!("{}", game.output(i));
         game.perform_move();
@@ -18,46 +19,59 @@ fn main() {
     }
     println!("{}", game.after());
 
-    /*
-    let whatever = unsafe { ptr2.as_ref() };
-    println!("{:?}", whatever);
-    let whatever = unsafe { ptr3.as_ref() };
-    println!("{:?}", whatever);
-    */
+    let mut game = Game::from(&input, 1_000_000).unwrap();
+    println!("{}", game.output_n(20));
+    for i in 0..10_000_000 {
+        game.perform_move();
+    }
+    println!("{}", game.after_part_b());
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-struct Value(u8);
+struct Value {
+    v: usize,
+    max: usize,
+}
 
-impl std::convert::TryFrom<u8> for Value {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if 1 <= value && value <= 9 {
-            Ok(Value(value))
+impl Value {
+    fn build(v: usize, max: usize) -> Result<Value, ()> {
+        if 1 <= v && v <= max {
+            Ok(Value { v: v, max: max })
         } else {
             Err(())
         }
     }
-}
 
-impl Value {
+    fn is_one(&self) -> bool {
+        self.v == 1
+    }
+
+    fn unwrap(self) -> usize {
+        self.v
+    }
+
     pub fn pred(self) -> Self {
-        if self.0 == 1 {
-            Value(9)
+        if self.v == 1 {
+            Value {
+                v: self.max,
+                max: self.max,
+            }
         } else {
-            Value(self.0 - 1)
+            Value {
+                v: self.v - 1,
+                max: self.max,
+            }
         }
     }
 }
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        self.v.fmt(f)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
 struct Node {
     value: Value,
     prev: *mut Node,
@@ -75,35 +89,71 @@ impl Node {
 }
 
 struct Game {
-    _memory: Vec<Node>,
+    memory: Vec<Node>,
     current: *mut Node,
 }
 
 impl Game {
-    pub fn from(v: Vec<u8>) -> Result<Self, ()> {
-        let mut memory = Vec::with_capacity(v.len());
+    pub fn from(v: &[usize], max: usize) -> Result<Self, ()> {
+        let mut memory = Vec::with_capacity(max);
 
-        for item in v {
-            let value = item.try_into()?;
+        let mut next_hm = std::collections::HashMap::new();
+        let mut prev_hm = std::collections::HashMap::new();
+
+        for i in 0..v.len() {
+            if i > 0 {
+                prev_hm.insert(v[i], v[i - 1]);
+            } else {
+                prev_hm.insert(v[i], max);
+            }
+            if i < v.len() - 1 {
+                next_hm.insert(v[i], v[i + 1]);
+            } else if max > v.len() {
+                next_hm.insert(v[i], v.len() + 1);
+            } else {
+                next_hm.insert(v[i], v[0]);
+            }
+        }
+
+        for i in 1..=max {
+            let value = Value::build(i, max)?;
             let node = Node::floating(value);
-            memory.push(node);
+            memory.push(node)
         }
 
         let memory_ptr = memory.as_mut_ptr();
         let size = memory.len();
-        for i in 0..size {
-            let previous_index = if i == 0 { size - 1 } else { i - 1 };
-            let next_index = if i == size - 1 { 0 } else { i + 1 };
-            let node = memory.get_mut(i).unwrap();
+        for index in 0..size {
+            let value = index + 1;
+
+            let previous_index = if let Some(prev_value) = prev_hm.get(&value) {
+                prev_value - 1
+            } else {
+                if index == 0 {
+                    size - 1
+                } else {
+                    index - 1
+                }
+            };
+            let next_index = if let Some(next_value) = next_hm.get(&value) {
+                next_value - 1
+            } else {
+                if index == size - 1 {
+                    0
+                } else {
+                    index + 1
+                }
+            };
+            let node = memory.get_mut(index).unwrap();
             let previous_ptr = unsafe { memory_ptr.add(previous_index) };
             let next_ptr = unsafe { memory_ptr.add(next_index) };
             node.prev = previous_ptr;
             node.next = next_ptr;
         }
 
-        let current = memory_ptr;
+        let current = unsafe { memory_ptr.add(v[0] - 1) };
         Ok(Game {
-            _memory: memory,
+            memory: memory,
             current,
         })
     }
@@ -118,9 +168,27 @@ impl Game {
         node.next
     }
 
+    unsafe fn pointer_for_value(&mut self, value: usize) -> *mut Node {
+        let memory_ptr = self.memory.as_mut_ptr();
+        memory_ptr.add(value - 1)
+    }
+
+    pub fn output_n(&self, mut n: usize) -> String {
+        let mut next_output = self.current;
+
+        let mut output = String::new();
+        while n > 0 {
+            n -= 1;
+            let node = unsafe { next_output.as_ref().unwrap() };
+            output.push_str(&format!(" {} ", node.value));
+            next_output = node.next;
+        }
+        output
+    }
+
     pub fn output(&self, round: usize) -> String {
         let mut start = self.current;
-        for _ in 0..(round % self._memory.len()) {
+        for _ in 0..(round % self.memory.len()) {
             start = unsafe { self.prev(start) };
         }
         let mut next_output = start;
@@ -158,6 +226,8 @@ impl Game {
             destination = destination.pred();
         }
 
+        let mut destination_ptr = unsafe { self.pointer_for_value(destination.unwrap()) };
+        /*
         // println!("destination: {}", destination);
         let mut destination_ptr = head.next;
         let mut destination_node = unsafe { destination_ptr.as_ref().unwrap() };
@@ -165,6 +235,7 @@ impl Game {
             destination_ptr = destination_node.next;
             destination_node = unsafe { destination_ptr.as_ref().unwrap() };
         }
+        */
         self.insert_slice(destination_ptr, slice);
         self.current = unsafe { self.next(head_ptr) };
     }
@@ -207,14 +278,17 @@ impl Game {
         slice_tail.next = before_ptr;
     }
 
-    fn after(&self) -> String {
-        let one = 1.try_into().unwrap();
+    fn after(&mut self) -> String {
+        /*
         let mut one_ptr = self.current;
         let mut one_node = unsafe { one_ptr.as_ref().unwrap() };
-        while one_node.value != one {
+        while !one_node.value.is_one() {
             one_ptr = one_node.next;
             one_node = unsafe { one_ptr.as_ref().unwrap() };
         }
+        */
+        let one_ptr = unsafe { self.pointer_for_value(1) };
+        let one_node = unsafe { one_ptr.as_ref().unwrap() };
 
         let mut output = String::new();
         let mut c_ptr = one_node.next;
@@ -225,6 +299,34 @@ impl Game {
         }
 
         output
+    }
+
+    fn after_part_b(&mut self) -> usize {
+        /*
+        let mut one_ptr = self.current;
+        let mut one_node = unsafe { one_ptr.as_ref().unwrap() };
+        while !one_node.value.is_one() {
+            one_ptr = one_node.next;
+            one_node = unsafe { one_ptr.as_ref().unwrap() };
+        }
+        */
+
+        let one_ptr = unsafe { self.pointer_for_value(1) };
+        let one_node = unsafe { one_ptr.as_ref().unwrap() };
+
+        let next_a_ptr = unsafe { self.next(one_ptr) };
+        let next_b_ptr = unsafe { self.next(next_a_ptr) };
+        let next_a_node = unsafe { next_a_ptr.as_ref().unwrap() };
+        let next_b_node = unsafe { next_b_ptr.as_ref().unwrap() };
+        let next_a_value = next_a_node.value.unwrap();
+        let next_b_value = next_b_node.value.unwrap();
+        println!(
+            "{} {} {}",
+            one_node.value.unwrap(),
+            next_a_value,
+            next_b_value
+        );
+        next_a_value * next_b_value
     }
 }
 
