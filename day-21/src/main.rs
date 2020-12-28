@@ -21,6 +21,17 @@ fn main() {
         }
     }
     println!("{}", total_appearances);
+
+    let ingredients_with_allergens = solution.ingredients_with_allergens();
+    let mut ingredients_with_allergens: Vec<(Allergen, Ingredient)> =
+        ingredients_with_allergens.into_iter().collect();
+    ingredients_with_allergens.sort();
+    let r = ingredients_with_allergens
+        .into_iter()
+        .map(|(allergen, ingredient)| ingredient.0.to_string())
+        .collect::<Vec<String>>()
+        .join(",");
+    println!("{}", r);
 }
 
 #[derive(Debug, Clone)]
@@ -120,6 +131,17 @@ impl<'a> Solution<'a> {
                 }
             }
         }
+    }
+
+    fn ingredients_with_allergens(&self) -> HashMap<Allergen, Ingredient> {
+        let mut hashmap = HashMap::new();
+        for (&allergen, ingredients) in &self.allergens {
+            if ingredients.len() != 1 {
+                panic!("{:?} has more than one ingredient!", allergen);
+            }
+            hashmap.insert(allergen, ingredients.iter().copied().next().unwrap());
+        }
+        hashmap
     }
 
     fn ingredients_without_allergens(&self) -> HashSet<Ingredient> {
