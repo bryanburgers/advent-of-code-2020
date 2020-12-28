@@ -7,9 +7,7 @@ pub struct Tile {
 
 impl Default for Tile {
     fn default() -> Self {
-        Self {
-            inner: 0,
-        }
+        Self { inner: 0 }
     }
 }
 
@@ -101,7 +99,7 @@ impl Tile {
         // self.inner[x][y] = v;
     }
 
-    fn get(&self, x: usize, y: usize) -> bool {
+    pub(crate) fn get(&self, x: usize, y: usize) -> bool {
         let idx = self.idx(x, y);
         (self.inner & (1 << idx)) > 0
         // self.inner[x][y]
@@ -156,9 +154,7 @@ pub struct TileBorder {
 
 impl Default for TileBorder {
     fn default() -> Self {
-        TileBorder {
-            inner: 0
-        }
+        TileBorder { inner: 0 }
     }
 }
 

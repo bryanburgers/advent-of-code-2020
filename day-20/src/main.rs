@@ -1,18 +1,25 @@
+mod image;
 mod tile;
 mod transform;
 
+use image::*;
 use tile::*;
 use transform::*;
 
-use std::io::Read;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::io::Read;
 
 fn main() {
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input).unwrap();
 
-    let tiles = input.trim().split("\n\n").map(|line| line.parse()).collect::<Result<Vec<IdentifiedTile>, _>>().unwrap();
+    let tiles = input
+        .trim()
+        .split("\n\n")
+        .map(|line| line.parse())
+        .collect::<Result<Vec<IdentifiedTile>, _>>()
+        .unwrap();
 
     let (rows, cols) = match tiles.len() {
         1 => (1, 1),
@@ -30,50 +37,101 @@ fn main() {
         _ => panic!("Get lost"),
     };
 
-    let mut borders: HashMap<TileIndex, (TileBorder, TileBorder, TileBorder, TileBorder)> = HashMap::new();
+    let mut borders: HashMap<TileIndex, (TileBorder, TileBorder, TileBorder, TileBorder)> =
+        HashMap::new();
     let mut all: HashSet<TileIndex> = HashSet::new();
     for tile in &tiles {
         for transform in Transform::all() {
             let id = tile.id;
             let tile = tile.tile.transform(transform);
             let idx = TileIndex { id, transform };
-            borders.insert(idx, (tile.top_border(), tile.right_border(), tile.bottom_border(), tile.left_border()));
+            borders.insert(
+                idx,
+                (
+                    tile.top_border(),
+                    tile.right_border(),
+                    tile.bottom_border(),
+                    tile.left_border(),
+                ),
+            );
             all.insert(idx);
         }
     }
 
-    let all = solve(rows, cols, 0, 0, Solution::default(), HashSet::new(), all.clone(), &borders);
+    let all = solve(
+        rows,
+        cols,
+        0,
+        0,
+        Solution::default(),
+        HashSet::new(),
+        all.clone(),
+        &borders,
+    );
     println!("{} solutions:", all.len());
     for solution in all {
         let tl = solution.tiles.get(&(0, 0)).unwrap();
         let tr = solution.tiles.get(&(cols - 1, 0)).unwrap();
         let bl = solution.tiles.get(&(0, rows - 1)).unwrap();
         let br = solution.tiles.get(&(cols - 1, rows - 1)).unwrap();
-        println!("{} {} {} {} => {}", tl.id, tr.id, bl.id, br.id, tl.id * tr.id * bl.id * br.id);
+        println!(
+            "{} {} {} {} => {}",
+            tl.id,
+            tr.id,
+            bl.id,
+            br.id,
+            tl.id * tr.id * bl.id * br.id
+        );
+
+        let name = format!("water-{}-{}-{}-{}.svg", tl.id, tr.id, bl.id, br.id);
+        let mut file = std::fs::File::create(name).unwrap();
+        let image = Image::build(solution.tiles, tiles.as_slice());
+        let (monster_count, monsters) = find_monsters(&image);
+        println!("  {} monsters", monster_count);
+        image.write(&mut file, &monsters).unwrap();
+
+        if monster_count > 0 {
+            let mut waves = 0;
+            for x in 0..Image::SIZE {
+                for y in 0..Image::SIZE {
+                    if image.get(x, y) {
+                        waves += 1;
+                    }
+                }
+            }
+            waves -= monsters.len();
+            println!("{} waves", waves);
+        }
     }
 }
 
-
-fn solve(rows: usize, cols: usize, x: usize, y: usize, current: Solution, used: HashSet<usize>, remaining: HashSet<TileIndex>, borders: &HashMap<TileIndex, (TileBorder, TileBorder, TileBorder, TileBorder)>) -> Vec<Solution> {
+fn solve(
+    rows: usize,
+    cols: usize,
+    x: usize,
+    y: usize,
+    current: Solution,
+    used: HashSet<usize>,
+    remaining: HashSet<TileIndex>,
+    borders: &HashMap<TileIndex, (TileBorder, TileBorder, TileBorder, TileBorder)>,
+) -> Vec<Solution> {
     let mut possibilities = Vec::new();
 
     let target_left_border: Option<TileBorder>;
     if x > 0 {
-        let to_the_left = current.tiles.get(&(x-1, y)).unwrap();
+        let to_the_left = current.tiles.get(&(x - 1, y)).unwrap();
         let right_border = borders.get(to_the_left).unwrap().1;
         target_left_border = Some(right_border);
-    }
-    else {
+    } else {
         target_left_border = None;
     }
 
     let target_top_border: Option<TileBorder>;
     if y > 0 {
-        let to_the_top = current.tiles.get(&(x, y-1)).unwrap();
+        let to_the_top = current.tiles.get(&(x, y - 1)).unwrap();
         let bottom_border = borders.get(to_the_top).unwrap().2;
         target_top_border = Some(bottom_border);
-    }
-    else {
+    } else {
         target_top_border = None;
     }
 
@@ -108,8 +166,7 @@ fn solve(rows: usize, cols: usize, x: usize, y: usize, current: Solution, used: 
             let mut current = current.clone();
             current.tiles.insert((x, y), *possibility);
             results.push(current);
-        }
-        else {
+        } else {
             // Recusively solve!
             let new_x;
             let new_y;
@@ -141,7 +198,7 @@ struct Solution {
 impl Default for Solution {
     fn default() -> Self {
         Solution {
-            tiles: HashMap::new()
+            tiles: HashMap::new(),
         }
     }
 }
@@ -161,13 +218,12 @@ impl std::str::FromStr for IdentifiedTile {
         let rest = parts.next().ok_or("Less than 2 lines")?;
 
         let colon = first_line.find(':').ok_or("Missing colon")?;
-        let id = first_line[5..colon].parse().map_err(|_| "Failed to parse number")?;
+        let id = first_line[5..colon]
+            .parse()
+            .map_err(|_| "Failed to parse number")?;
         let tile = rest.parse()?;
 
-        Ok(Self {
-            id,
-            tile,
-        })
+        Ok(Self { id, tile })
     }
 }
 
@@ -181,4 +237,48 @@ impl std::fmt::Debug for IdentifiedTile {
 struct TileIndex {
     id: usize,
     transform: transform::Transform,
+}
+
+fn find_monsters(image: &Image) -> (usize, HashSet<(usize, usize)>) {
+    /// 0123456789_123456789
+    /// ..................#.
+    /// #....##....##....###
+    /// .#..#..#..#..#..#...
+    const OFFSETS: [(usize, usize); 15] = [
+        (18, 0),
+        (0, 1),
+        (5, 1),
+        (6, 1),
+        (11, 1),
+        (12, 1),
+        (17, 1),
+        (18, 1),
+        (19, 1),
+        (1, 2),
+        (4, 2),
+        (7, 2),
+        (10, 2),
+        (13, 2),
+        (16, 2),
+    ];
+    const MONSTER_WIDTH: usize = 20;
+    const MONSTER_HEIGHT: usize = 3;
+
+    let mut matches = 0;
+    let mut coordinates = HashSet::new();
+    for x in 0..(Image::SIZE - MONSTER_WIDTH) {
+        for y in 0..(Image::SIZE - MONSTER_HEIGHT) {
+            let all_match = OFFSETS
+                .iter()
+                .all(|&(offset_x, offset_y)| image.get(offset_x + x, offset_y + y));
+            if all_match {
+                matches += 1;
+                for &(offset_x, offset_y) in OFFSETS.iter() {
+                    coordinates.insert((offset_x + x, offset_y + y));
+                }
+            }
+        }
+    }
+
+    (matches, coordinates)
 }

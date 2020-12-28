@@ -16,4 +16,3 @@ impl Transform {
         vec![R0, R1, R2, R3, MR0, MR1, MR2, MR3]
     }
 }
-
